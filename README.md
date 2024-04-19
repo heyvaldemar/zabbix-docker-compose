@@ -1,5 +1,7 @@
 # Zabbix Using Docker Compose
 
+📙 The complete installation guide is available on my [website](https://www.heyvaldemar.com/install-zabbix-using-docker-compose/).
+
 ❗ Change variables in the `.env` to meet your requirements.
 
 💡 Note that the `.env` file should be in the same directory as `zabbix-docker-compose.yml`.
