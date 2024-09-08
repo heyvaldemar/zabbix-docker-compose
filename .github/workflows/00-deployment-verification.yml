@@ -42,7 +42,6 @@ jobs:
     - name: Inspect Network Configuration
       run: |
         docker network inspect zabbix-network
-        docker network inspect traefik-network
 
     - name: Shutdown Docker Compose services
       if: always()
