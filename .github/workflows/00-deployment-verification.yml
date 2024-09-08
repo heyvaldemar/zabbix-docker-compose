@@ -1,4 +1,4 @@
-name: Deployment Verification for Zabbix
+name: Deployment Verification
 
 on:
   push:
