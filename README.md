@@ -1,134 +1,76 @@
-# Zabbix Using Docker Compose
+# Zabbix — Docker Compose
 
-[![Deployment Verification](https://github.com/heyvaldemar/zabbix-docker-compose/actions/workflows/00-deployment-verification.yml/badge.svg)](https://github.com/heyvaldemar/zabbix-docker-compose/actions)
+[![Deployment Verification](https://github.com/heyvaldemar/zabbix-docker-compose/actions/workflows/deployment-verification.yml/badge.svg?branch=main)](https://github.com/heyvaldemar/zabbix-docker-compose/actions/workflows/deployment-verification.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-The badge displayed on my repository indicates the status of the deployment verification workflow as executed on the latest commit to the main branch.
+This repository deploys a full **Zabbix 7.0 LTS** monitoring stack — server, nginx web frontend, agent2, PostgreSQL, and a scheduled backup container — with the web UI published directly on port 80. It is the no-reverse-proxy sibling of [zabbix-traefik-letsencrypt-docker-compose](https://github.com/heyvaldemar/zabbix-traefik-letsencrypt-docker-compose); use that variant when you want automatic HTTPS with Let's Encrypt.
 
-**Passing**: This means the most recent commit has successfully passed all deployment checks, confirming that the Docker Compose setup functions correctly as designed.
+📙 Full narrative installation guide on the blog: [heyvaldemar.com/install-zabbix-using-docker-compose/](https://www.heyvaldemar.com/install-zabbix-using-docker-compose/).
 
-📙 The complete installation guide is available on my [website](https://www.heyvaldemar.com/install-zabbix-using-docker-compose/).
+## Getting started
 
-❗ Change variables in the `.env` to meet your requirements.
+```bash
+# 1. Clone
+git clone https://github.com/heyvaldemar/zabbix-docker-compose
+cd zabbix-docker-compose
 
-💡 Note that the `.env` file should be in the same directory as `zabbix-docker-compose.yml`.
+# 2. Create the Docker network the stack expects
+docker network create zabbix-network
 
-Create networks for your services before deploying the configuration using the commands:
+# 3. Copy the environment template and set the database password
+cp .env.example .env
+$EDITOR .env
+# ^ Required: ZABBIX_DB_PASSWORD. Everything else has defaults.
 
-`docker network create zabbix-network`
+# 4. Deploy
+docker compose -f zabbix-docker-compose.yml -p zabbix up -d
+```
 
-Deploy Zabbix using Docker Compose:
+The dashboard appears on `http://your-server/` within a couple of minutes (first boot creates the database schema). Default frontend credentials are Zabbix's stock `Admin` / `zabbix` — change them immediately. Agent traffic arrives on ports 10051 (server) as published by the compose file.
 
-`docker compose -f zabbix-docker-compose.yml -p zabbix up -d`
+### What success looks like
 
-## Backups
+```bash
+docker compose -f zabbix-docker-compose.yml -p zabbix ps
+curl -fsS -X POST "http://localhost/api_jsonrpc.php" \
+  -H 'Content-Type: application/json' \
+  -d '{"jsonrpc":"2.0","method":"apiinfo.version","params":{},"id":1}'
+# Expected: {"jsonrpc":"2.0","result":"7.0.30","id":1}
+```
 
-The `backups` container in the configuration is responsible for the following:
+## Supply chain trust
 
-1. **Database Backup**: Creates compressed backups of the PostgreSQL database using pg_dump.
-Customizable backup path, filename pattern, and schedule through variables like `POSTGRES_BACKUPS_PATH`, `POSTGRES_BACKUP_NAME`, and `BACKUP_INTERVAL`.
+Four upstream images ([`zabbix/zabbix-server-pgsql`](https://hub.docker.com/r/zabbix/zabbix-server-pgsql), [`zabbix/zabbix-web-nginx-pgsql`](https://hub.docker.com/r/zabbix/zabbix-web-nginx-pgsql), [`zabbix/zabbix-agent2`](https://hub.docker.com/r/zabbix/zabbix-agent2), [`postgres`](https://hub.docker.com/_/postgres)), all pinned to `tag@sha256:<digest>` as interpolation defaults in the compose file's `x-images` block — `git pull` alone delivers the version combination this repository has tested; an `*_IMAGE_TAG` variable in `.env` overrides deliberately.
 
-2. **Backup Pruning**: Periodically removes backups exceeding a specified age to manage storage. Customizable pruning schedule and age threshold with `POSTGRES_BACKUP_PRUNE_DAYS` and `DATA_BACKUP_PRUNE_DAYS`.
+The weekly `check-pin-freshness` CI job re-resolves each pinned tag against its registry and compares the pinned Zabbix version against the latest patch of its LTS line via endoflife.date, failing loudly if the line itself goes end-of-life. GitHub Actions are pinned by commit SHA; Dependabot keeps those fresh.
 
-By utilizing this container, consistent and automated backups of the essential components of your instance are ensured. Moreover, efficient management of backup storage and tailored backup routines can be achieved through easy and flexible configuration using environment variables.
+## Testing
 
-## zabbix-restore-database.sh Description
+The [Deployment Verification](https://github.com/heyvaldemar/zabbix-docker-compose/actions/workflows/deployment-verification.yml?query=branch%3Amain) workflow runs on every push, pull request, and every Monday at 06:00 UTC: shellcheck + actionlint, Trivy scans of all four pinned images, the weekly freshness check, and a deploy-and-test job that boots the full stack with ephemeral credentials, waits for the zabbix-server healthcheck, and requires the web API (`apiinfo.version`) to answer — the shipped configuration must produce a working Zabbix, not just started containers.
 
-This script facilitates the restoration of a database backup:
+## Backups and restore
 
-1. **Identify Containers**: It first identifies the service and backups containers by name, finding the appropriate container IDs.
+The `backups` container runs a `pg_dump | gzip` → prune → sleep loop (defaults: 30-minute warm-up, 24-hour interval, 7-day retention — tune via `.env`). Restore with the interactive script:
 
-2. **List Backups**: Displays all available database backups located at the specified backup path.
+```bash
+chmod +x zabbix-restore-database.sh
+./zabbix-restore-database.sh
+```
 
-3. **Select Backup**: Prompts the user to copy and paste the desired backup name from the list to restore the database.
+## Security Notes
 
-4. **Stop Service**: Temporarily stops the service to ensure data consistency during restoration.
+- Change the stock `Admin`/`zabbix` frontend login on first use.
+- `.env` is gitignored; compose fails fast when `ZABBIX_DB_PASSWORD` is unset. **Pre-rotation advisory:** releases before v1.0.0 (2026-08-31) shipped a tracked `.env` with a generated-looking database password — rotate it if reused.
+- The web UI is plain HTTP on port 80 — front it with TLS (or use the [Traefik variant](https://github.com/heyvaldemar/zabbix-traefik-letsencrypt-docker-compose)) before exposing it beyond a trusted network.
 
-5. **Restore Database**: Executes a sequence of commands to drop the current database, create a new one, and restore it from the selected compressed backup file.
+---
 
-6. **Start Service**: Restarts the service after the restoration is completed.
-
-To make the `zabbix-restore-database.shh` script executable, run the following command:
-
-`chmod +x zabbix-restore-database.sh`
-
-Usage of this script ensures a controlled and guided process to restore the database from an existing backup.
-
-## Author
-
-hey everyone,
-
-💾 I’ve been in the IT game for over 20 years, cutting my teeth with some big names like [IBM](https://www.linkedin.com/in/heyvaldemar/), [Thales](https://www.linkedin.com/in/heyvaldemar/), and [Amazon](https://www.linkedin.com/in/heyvaldemar/). These days, I wear the hat of a DevOps Consultant and Team Lead, but what really gets me going is Docker and container technology - I’m kind of obsessed!
-
-💛 I have my own IT [blog](https://www.heyvaldemar.com/), where I’ve built a [community](https://discord.gg/AJQGCCBcqf) of DevOps enthusiasts who share my love for all things Docker, containers, and IT technologies in general. And to make sure everyone can jump on this awesome DevOps train, I write super detailed guides (seriously, they’re foolproof!) that help even newbies deploy and manage complex IT solutions.
-
-🚀 My dream is to empower every single person in the DevOps community to squeeze every last drop of potential out of Docker and container tech.
-
-🐳 As a [Docker Captain](https://www.docker.com/captains/vladimir-mikhalev/), I’m stoked to share my knowledge, experiences, and a good dose of passion for the tech. My aim is to encourage learning, innovation, and growth, and to inspire the next generation of IT whizz-kids to push Docker and container tech to its limits.
-
-Let’s do this together!
-
-## My 2D Portfolio
-
-🕹️ Click into [sre.gg](https://www.sre.gg/) — my virtual space is a 2D pixel-art portfolio inviting you to interact with elements that encapsulate the milestones of my DevOps career.
-
-## My Courses
-
-🎓 Dive into my [comprehensive IT courses](https://www.heyvaldemar.com/courses/) designed for enthusiasts and professionals alike. Whether you're looking to master Docker, conquer Kubernetes, or advance your DevOps skills, my courses provide a structured pathway to enhancing your technical prowess.
-
-🔑 [Each course](https://www.udemy.com/user/heyvaldemar/) is built from the ground up with real-world scenarios in mind, ensuring that you gain practical knowledge and hands-on experience. From beginners to seasoned professionals, there's something here for everyone to elevate their IT skills.
-
-## My Services
-
-💼 Take a look at my [service catalog](https://www.heyvaldemar.com/services/) and find out how we can make your technological life better. Whether it's increasing the efficiency of your IT infrastructure, advancing your career, or expanding your technological horizons — I'm here to help you achieve your goals. From DevOps transformations to building gaming computers — let's make your technology unparalleled!
-
-## Patreon Exclusives
-
-🏆 Join my [Patreon](https://www.patreon.com/heyvaldemar) and dive deep into the world of Docker and DevOps with exclusive content tailored for IT enthusiasts and professionals. As your experienced guide, I offer a range of membership tiers designed to suit everyone from newbies to IT experts.
-
-## My Recommendations
-
-📕 Check out my collection of [essential DevOps books](https://kit.co/heyvaldemar/essential-devops-books)\
-🖥️ Check out my [studio streaming and recording kit](https://kit.co/heyvaldemar/my-studio-streaming-and-recording-kit)\
-📡 Check out my [streaming starter kit](https://kit.co/heyvaldemar/streaming-starter-kit)
-
-## Follow Me
-
-🎬 [YouTube](https://www.youtube.com/channel/UCf85kQ0u1sYTTTyKVpxrlyQ?sub_confirmation=1)\
-🐦 [X / Twitter](https://twitter.com/heyvaldemar)\
-🎨 [Instagram](https://www.instagram.com/heyvaldemar/)\
-🐘 [Mastodon](https://mastodon.social/@heyvaldemar)\
-🧵 [Threads](https://www.threads.net/@heyvaldemar)\
-🎸 [Facebook](https://www.facebook.com/heyvaldemarFB/)\
-🧊 [Bluesky](https://bsky.app/profile/heyvaldemar.bsky.social)\
-🎥 [TikTok](https://www.tiktok.com/@heyvaldemar)\
-💻 [LinkedIn](https://www.linkedin.com/in/heyvaldemar/)\
-📣 [daily.dev Squad](https://app.daily.dev/squads/devopscompass)\
-🧩 [LeetCode](https://leetcode.com/u/heyvaldemar/)\
-🐈 [GitHub](https://github.com/heyvaldemar)
-
-## Community of IT Experts
-
-👾 [Discord](https://discord.gg/AJQGCCBcqf)
-
-## Refill My Coffee Supplies
-
-💖 [PayPal](https://www.paypal.com/paypalme/heyvaldemarCOM)\
-🏆 [Patreon](https://www.patreon.com/heyvaldemar)\
-💎 [GitHub](https://github.com/sponsors/heyvaldemar)\
-🥤 [BuyMeaCoffee](https://www.buymeacoffee.com/heyvaldemar)\
-🍪 [Ko-fi](https://ko-fi.com/heyvaldemar)
-
-🌟 **Bitcoin (BTC):** bc1q2fq0k2lvdythdrj4ep20metjwnjuf7wccpckxc\
-🔹 **Ethereum (ETH):** 0x76C936F9366Fad39769CA5285b0Af1d975adacB8\
-🪙 **Binance Coin (BNB):** bnb1xnn6gg63lr2dgufngfr0lkq39kz8qltjt2v2g6\
-💠 **Litecoin (LTC):** LMGrhx8Jsx73h1pWY9FE8GB46nBytjvz8g
+## About the maintainer
 
 <div align="center">
 
-### Show some 💜 by starring some of the [repositories](https://github.com/heyValdemar?tab=repositories)!
+**Maintained by [Vladimir Mikhalev](https://github.com/heyvaldemar)** — Docker Captain · IBM Champion · AWS Community Builder
 
-![octocat](https://user-images.githubusercontent.com/10498744/210113490-e2fad07f-4488-4da8-a656-b9abbdd8cb26.gif)
+[YouTube](https://www.youtube.com/channel/UCf85kQ0u1sYTTTyKVpxrlyQ?sub_confirmation=1) · [Blog](https://heyvaldemar.com) · [LinkedIn](https://www.linkedin.com/in/heyvaldemar/)
 
 </div>
-
-![footer](https://user-images.githubusercontent.com/10498744/210157572-1fca0242-8af2-46a6-bfa3-666ffd40ebde.svg)
