@@ -48,6 +48,17 @@ The weekly `check-pin-freshness` CI job re-resolves each pinned tag against its 
 
 The [Deployment Verification](https://github.com/heyvaldemar/zabbix-docker-compose/actions/workflows/deployment-verification.yml?query=branch%3Amain) workflow runs on every push, pull request, and every Monday at 06:00 UTC: shellcheck + actionlint, Trivy scans of all four pinned images, the weekly freshness check, and a deploy-and-test job that boots the full stack with ephemeral credentials, waits for the zabbix-server healthcheck, and requires the web API (`apiinfo.version`) to answer — the shipped configuration must produce a working Zabbix, not just started containers.
 
+### Backup and restore, proven
+
+`tests/e2e-backup-restore.sh` runs against the live stack and is what CI executes after the HTTPS smoke. The scenario that matters most is the restore roundtrip: insert a marker row, restore the earliest backup, assert the marker is gone — a backup that cannot be restored fails the build. Run it yourself against a running deployment with short intervals in `.env` (`BACKUP_INIT_SLEEP=15s`, `BACKUP_INTERVAL=60s`):
+
+```bash
+chmod +x tests/e2e-backup-restore.sh
+./tests/e2e-backup-restore.sh
+```
+
+It stops the database container briefly to prove failure detection — run it on a staging copy, not on production.
+
 ## Backups and restore
 
 The `backups` container runs a `pg_dump | gzip` → prune → sleep loop (defaults: 30-minute warm-up, 24-hour interval, 7-day retention — tune via `.env`). Restore with the interactive script:
