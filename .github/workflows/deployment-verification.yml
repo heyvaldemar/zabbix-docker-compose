@@ -8,8 +8,8 @@ on:
     branches:
       - main
   schedule:
-    # Weekly rebuild to catch upstream image drift.
-    - cron: "0 6 * * 1"
+    # Daily rebuild: security patches should not wait for a weekly slot.
+    - cron: "0 6 * * *"
   workflow_dispatch:
 
 concurrency:
