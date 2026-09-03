@@ -3,7 +3,7 @@
 [![Deployment Verification](https://github.com/heyvaldemar/zabbix-docker-compose/actions/workflows/deployment-verification.yml/badge.svg?branch=main)](https://github.com/heyvaldemar/zabbix-docker-compose/actions/workflows/deployment-verification.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-This repository deploys a full **Zabbix 7.0 LTS** monitoring stack (server, nginx web frontend, agent2, PostgreSQL, and a scheduled backup container) with the web UI published directly on port 80. It is the no-reverse-proxy sibling of [zabbix-traefik-letsencrypt-docker-compose](https://github.com/heyvaldemar/zabbix-traefik-letsencrypt-docker-compose); use that variant when you want automatic HTTPS with Let's Encrypt.
+This repository deploys a full Zabbix 7.0 LTS monitoring stack (server, nginx web frontend, agent2, PostgreSQL, and a scheduled backup container) with the web UI published directly on port 80. It is the no-reverse-proxy sibling of [zabbix-traefik-letsencrypt-docker-compose](https://github.com/heyvaldemar/zabbix-traefik-letsencrypt-docker-compose); use that variant when you want automatic HTTPS with Let's Encrypt.
 
 📙 Full narrative installation guide on the blog: [heyvaldemar.com/install-zabbix-using-docker-compose/](https://www.heyvaldemar.com/install-zabbix-using-docker-compose/).
 
@@ -78,10 +78,10 @@ chmod +x zabbix-restore-database.sh
 ./zabbix-restore-database.sh
 ```
 
-## Security Notes
+## Security notes
 
 - Change the stock `Admin`/`zabbix` frontend login on first use.
-- `.env` is gitignored; compose fails fast when `ZABBIX_DB_PASSWORD` is unset. **Pre-rotation advisory:** releases before v1.0.0 (2026-08-31) shipped a tracked `.env` with a generated-looking database password: rotate it if reused.
+- `.env` is gitignored; compose fails fast when `ZABBIX_DB_PASSWORD` is unset. Pre-rotation advisory: releases before v1.0.0 (2026-08-31) shipped a tracked `.env` with a generated-looking database password: rotate it if reused.
 - The web UI is plain HTTP on port 80: front it with TLS (or use the [Traefik variant](https://github.com/heyvaldemar/zabbix-traefik-letsencrypt-docker-compose)) before exposing it beyond a trusted network.
 
 ---
