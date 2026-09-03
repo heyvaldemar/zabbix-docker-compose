@@ -41,7 +41,7 @@ _(no unreleased changes yet)_
 
 ### Added
 
-- **`tests/e2e-backup-restore.sh`** — seven end-to-end scenarios against
+- **`tests/e2e-backup-restore.sh`**: seven end-to-end scenarios against
   the live stack, run by CI on every push and by you locally: the
   required-variable guard fires, a backup is produced, it is a readable
   archive with real dump content (and a readable data `tar.gz` where the
@@ -79,10 +79,10 @@ for the TLS-fronted variant).
 
 - **Zabbix bumped 6.4.6 → 7.0.30 LTS** (6.4 has been end-of-life since
   2024-12-31; 7.0 is supported until 2029). Server, web, and agent2 move
-  together; the server migrates the database schema on first start —
+  together; the server migrates the database schema on first start:
   back up before pulling.
 - **All four images pinned by `tag@sha256:digest`.**
-- **Credentials untracked from git** — rotate `ZABBIX_DB_PASSWORD` if
+- **Credentials untracked from git**: rotate `ZABBIX_DB_PASSWORD` if
   your deployment reused the previously tracked value.
 
 ### Changed

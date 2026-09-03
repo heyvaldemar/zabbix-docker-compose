@@ -1,9 +1,9 @@
-# Zabbix — Docker Compose
+# Zabbix on Docker Compose
 
 [![Deployment Verification](https://github.com/heyvaldemar/zabbix-docker-compose/actions/workflows/deployment-verification.yml/badge.svg?branch=main)](https://github.com/heyvaldemar/zabbix-docker-compose/actions/workflows/deployment-verification.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-This repository deploys a full **Zabbix 7.0 LTS** monitoring stack — server, nginx web frontend, agent2, PostgreSQL, and a scheduled backup container — with the web UI published directly on port 80. It is the no-reverse-proxy sibling of [zabbix-traefik-letsencrypt-docker-compose](https://github.com/heyvaldemar/zabbix-traefik-letsencrypt-docker-compose); use that variant when you want automatic HTTPS with Let's Encrypt.
+This repository deploys a full **Zabbix 7.0 LTS** monitoring stack (server, nginx web frontend, agent2, PostgreSQL, and a scheduled backup container) with the web UI published directly on port 80. It is the no-reverse-proxy sibling of [zabbix-traefik-letsencrypt-docker-compose](https://github.com/heyvaldemar/zabbix-traefik-letsencrypt-docker-compose); use that variant when you want automatic HTTPS with Let's Encrypt.
 
 📙 Full narrative installation guide on the blog: [heyvaldemar.com/install-zabbix-using-docker-compose/](https://www.heyvaldemar.com/install-zabbix-using-docker-compose/).
 
@@ -26,7 +26,7 @@ $EDITOR .env
 docker compose -f zabbix-docker-compose.yml -p zabbix up -d
 ```
 
-The dashboard appears on `http://your-server/` within a couple of minutes (first boot creates the database schema). Default frontend credentials are Zabbix's stock `Admin` / `zabbix` — change them immediately. Agent traffic arrives on ports 10051 (server) as published by the compose file.
+The dashboard appears on `http://your-server/` within a couple of minutes (first boot creates the database schema). Default frontend credentials are Zabbix's stock `Admin` / `zabbix`: change them immediately. Agent traffic arrives on ports 10051 (server) as published by the compose file.
 
 ### What success looks like
 
@@ -40,13 +40,13 @@ curl -fsS -X POST "http://localhost/api_jsonrpc.php" \
 
 ## Supply chain trust
 
-Four upstream images ([`zabbix/zabbix-server-pgsql`](https://hub.docker.com/r/zabbix/zabbix-server-pgsql), [`zabbix/zabbix-web-nginx-pgsql`](https://hub.docker.com/r/zabbix/zabbix-web-nginx-pgsql), [`zabbix/zabbix-agent2`](https://hub.docker.com/r/zabbix/zabbix-agent2), [`postgres`](https://hub.docker.com/_/postgres)), all pinned to `tag@sha256:<digest>` as interpolation defaults in the compose file's `x-images` block — `git pull` alone delivers the version combination this repository has tested; an `*_IMAGE_TAG` variable in `.env` overrides deliberately.
+Four upstream images ([`zabbix/zabbix-server-pgsql`](https://hub.docker.com/r/zabbix/zabbix-server-pgsql), [`zabbix/zabbix-web-nginx-pgsql`](https://hub.docker.com/r/zabbix/zabbix-web-nginx-pgsql), [`zabbix/zabbix-agent2`](https://hub.docker.com/r/zabbix/zabbix-agent2), [`postgres`](https://hub.docker.com/_/postgres)), all pinned to `tag@sha256:<digest>` as interpolation defaults in the compose file's `x-images` block: `git pull` alone delivers the version combination this repository has tested; an `*_IMAGE_TAG` variable in `.env` overrides deliberately.
 
 The daily `check-pin-freshness` CI job re-resolves each pinned tag against its registry and compares the pinned Zabbix version against the latest patch of its LTS line via endoflife.date, failing loudly if the line itself goes end-of-life. GitHub Actions are pinned by commit SHA; Dependabot keeps those fresh.
 
 ## Resource limits
 
-Every service carries memory and CPU limits plus reservations as compose-level defaults — the same values CI boots the stack under. Override any of them in `.env` (the knobs and their defaults are listed in `.env.example`, e.g. `TRAEFIK_MEMORY_LIMIT=512m`) and the override survives every `git pull`. If a service is OOM-killed under real load, `docker inspect <container> --format '{{.State.OOMKilled}}'` says so; raise its `_MEMORY_LIMIT` and recreate.
+Every service carries memory and CPU limits plus reservations as compose-level defaults: the same values CI boots the stack under. Override any of them in `.env` (the knobs and their defaults are listed in `.env.example`, e.g. `TRAEFIK_MEMORY_LIMIT=512m`) and the override survives every `git pull`. If a service is OOM-killed under real load, `docker inspect <container> --format '{{.State.OOMKilled}}'` says so; raise its `_MEMORY_LIMIT` and recreate.
 
 ## Container hardening
 
@@ -54,22 +54,22 @@ Every service runs with `security_opt: no-new-privileges:true`, so a process can
 
 ## Testing
 
-The [Deployment Verification](https://github.com/heyvaldemar/zabbix-docker-compose/actions/workflows/deployment-verification.yml?query=branch%3Amain) workflow runs on every push, pull request, and every day at 06:00 UTC: shellcheck + actionlint, Trivy scans of all four pinned images, the weekly freshness check, and a deploy-and-test job that boots the full stack with ephemeral credentials, waits for the zabbix-server healthcheck, and requires the web API (`apiinfo.version`) to answer — the shipped configuration must produce a working Zabbix, not just started containers.
+The [Deployment Verification](https://github.com/heyvaldemar/zabbix-docker-compose/actions/workflows/deployment-verification.yml?query=branch%3Amain) workflow runs on every push, pull request, and every day at 06:00 UTC: shellcheck + actionlint, Trivy scans of all four pinned images, the weekly freshness check, and a deploy-and-test job that boots the full stack with ephemeral credentials, waits for the zabbix-server healthcheck, and requires the web API (`apiinfo.version`) to answer. The shipped configuration must produce a working Zabbix, not just started containers.
 
 ### Backup and restore, proven
 
-`tests/e2e-backup-restore.sh` runs against the live stack and is what CI executes after the HTTPS smoke. The scenario that matters most is the restore roundtrip: insert a marker row, restore the earliest backup, assert the marker is gone — a backup that cannot be restored fails the build. Run it yourself against a running deployment with short intervals in `.env` (`BACKUP_INIT_SLEEP=15s`, `BACKUP_INTERVAL=60s`):
+`tests/e2e-backup-restore.sh` runs against the live stack and is what CI executes after the HTTPS smoke. The scenario that matters most is the restore roundtrip: insert a marker row, restore the earliest backup, assert the marker is gone. A backup that cannot be restored fails the build. Run it yourself against a running deployment with short intervals in `.env` (`BACKUP_INIT_SLEEP=15s`, `BACKUP_INTERVAL=60s`):
 
 ```bash
 chmod +x tests/e2e-backup-restore.sh
 ./tests/e2e-backup-restore.sh
 ```
 
-It stops the database container briefly to prove failure detection — run it on a staging copy, not on production.
+It stops the database container briefly to prove failure detection: run it on a staging copy, not on production.
 
 ## Backups and restore
 
-The `backups` container runs a `pg_dump | gzip` → prune → sleep loop (defaults: 30-minute warm-up, 24-hour interval, 7-day retention — tune via `.env`). Restore with the interactive script:
+The `backups` container runs a `pg_dump | gzip` → prune → sleep loop (defaults: 30-minute warm-up, 24-hour interval, 7-day retention, tune via `.env`). Restore with the interactive script:
 
 ```bash
 chmod +x zabbix-restore-database.sh
@@ -79,8 +79,8 @@ chmod +x zabbix-restore-database.sh
 ## Security Notes
 
 - Change the stock `Admin`/`zabbix` frontend login on first use.
-- `.env` is gitignored; compose fails fast when `ZABBIX_DB_PASSWORD` is unset. **Pre-rotation advisory:** releases before v1.0.0 (2026-08-31) shipped a tracked `.env` with a generated-looking database password — rotate it if reused.
-- The web UI is plain HTTP on port 80 — front it with TLS (or use the [Traefik variant](https://github.com/heyvaldemar/zabbix-traefik-letsencrypt-docker-compose)) before exposing it beyond a trusted network.
+- `.env` is gitignored; compose fails fast when `ZABBIX_DB_PASSWORD` is unset. **Pre-rotation advisory:** releases before v1.0.0 (2026-08-31) shipped a tracked `.env` with a generated-looking database password: rotate it if reused.
+- The web UI is plain HTTP on port 80: front it with TLS (or use the [Traefik variant](https://github.com/heyvaldemar/zabbix-traefik-letsencrypt-docker-compose)) before exposing it beyond a trusted network.
 
 ---
 
@@ -88,7 +88,7 @@ chmod +x zabbix-restore-database.sh
 
 <div align="center">
 
-**Maintained by [Vladimir Mikhalev](https://github.com/heyvaldemar)** — Docker Captain · IBM Champion · AWS Community Builder
+**Maintained by [Vladimir Mikhalev](https://github.com/heyvaldemar)** · Docker Captain · IBM Champion · AWS Community Builder
 
 [YouTube](https://www.youtube.com/channel/UCf85kQ0u1sYTTTyKVpxrlyQ?sub_confirmation=1) · [Blog](https://heyvaldemar.com) · [LinkedIn](https://www.linkedin.com/in/heyvaldemar/)
 
