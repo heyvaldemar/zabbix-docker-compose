@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+_(no unreleased changes yet)_
+
+## [1.8.1] - 2026-09-19
+
 ### Security
 
 - **`postgres:15` was rebuilt upstream**; the pin moved from `sha256:9b1d34adbce1…` to `sha256:dfbbb0ad8cab…`. Same version, same tag, a rebuilt base image — the usual shape of a security fix in a base layer.
@@ -147,7 +151,8 @@ for the TLS-fronted variant).
 
 - Shellcheck findings in the restore script.
 
-[Unreleased]: https://github.com/heyvaldemar/zabbix-docker-compose/compare/v1.8.0...HEAD
+[Unreleased]: https://github.com/heyvaldemar/zabbix-docker-compose/compare/v1.8.1...HEAD
+[1.8.1]: https://github.com/heyvaldemar/zabbix-docker-compose/compare/v1.8.0...v1.8.1
 [1.8.0]: https://github.com/heyvaldemar/zabbix-docker-compose/compare/v1.7.0...v1.8.0
 [1.7.0]: https://github.com/heyvaldemar/zabbix-docker-compose/compare/v1.6.0...v1.7.0
 [1.6.0]: https://github.com/heyvaldemar/zabbix-docker-compose/compare/v1.5.0...v1.6.0
