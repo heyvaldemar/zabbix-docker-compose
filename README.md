@@ -35,7 +35,7 @@ docker compose -f zabbix-docker-compose.yml -p zabbix ps
 curl -fsS -X POST "http://localhost/api_jsonrpc.php" \
   -H 'Content-Type: application/json' \
   -d '{"jsonrpc":"2.0","method":"apiinfo.version","params":{},"id":1}'
-# Expected: {"jsonrpc":"2.0","result":"7.0.30","id":1}
+# Expected: {"jsonrpc":"2.0","result":"7.0.31","id":1}
 ```
 
 ## Updating
