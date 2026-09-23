@@ -82,6 +82,8 @@ chmod +x zabbix-restore-database.sh
 ./zabbix-restore-database.sh
 ```
 
+It lists the backups and asks, or takes a file name as its argument; it reads every path and credential from the running backups container, and CI runs it on every push.
+
 ## Security notes
 
 - Change the stock `Admin`/`zabbix` frontend login on first use.
