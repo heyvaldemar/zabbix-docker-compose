@@ -48,6 +48,8 @@ jobs:
       DB_RESTORE: "./zabbix-restore-database.sh \"$F\""
       DATA_RESTORE: ""
       DR_DIAG: ""
+      DR_IGNORE_SERVICES: ""
+      DR_KEEP: ""
     steps:
       - name: Checkout repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -72,6 +74,8 @@ jobs:
           echo "DR_FROM=$from" >> "$GITHUB_ENV"
           echo "the backup is taken on $from"
 
+      - name: Create the Docker network
+        run: docker network create "$NETWORK_ONE" || true
 
       - name: Generate test .env with ephemeral credentials
         # No *_IMAGE_TAG values on purpose: the compose x-images defaults
@@ -125,12 +129,27 @@ jobs:
       DB_RESTORE: "./zabbix-restore-database.sh \"$F\""
       DATA_RESTORE: ""
       DR_DIAG: ""
+      DR_IGNORE_SERVICES: ""
+      DR_KEEP: ""
     steps:
       - name: Checkout repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
 
+      - name: Create the Docker network
+        run: docker network create "$NETWORK_ONE" || true
+
+      - name: Generate test .env with ephemeral credentials
+        # No *_IMAGE_TAG values on purpose: the compose x-images defaults
+        # apply, so CI tests exactly the pins the template ships.
+        run: |
+          cat > .env <<EOF
+          ZABBIX_DB_PASSWORD=$(openssl rand -base64 24 | tr -d '/+=' | head -c 32)
+          ZABBIX_BACKUP_INIT_SLEEP=15s
+          ZABBIX_BACKUP_INTERVAL=60s
+          EOF
+          echo "Generated ephemeral .env for CI run"
 
 
       - name: The files kept off the dead host
