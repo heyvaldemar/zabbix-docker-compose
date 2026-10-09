@@ -55,7 +55,8 @@ services:
           memory: ${ZABBIX_POSTGRES_MEMORY_RESERVATION:-128m}
           cpus: "${ZABBIX_POSTGRES_CPU_RESERVATION:-0.25}"
     volumes:
-      - zabbix-postgres:/var/lib/postgresql/data
+      # PostgreSQL 15-17 use /var/lib/postgresql/data; PostgreSQL 18+ uses /var/lib/postgresql.
+      - zabbix-postgres:${ZABBIX_POSTGRES_DATA_PATH:-/var/lib/postgresql/data}
     environment:
       POSTGRES_DB: ${ZABBIX_DB_NAME:-zabbixdb}
       POSTGRES_USER: ${ZABBIX_DB_USER:-zabbixdbuser}
@@ -217,7 +218,7 @@ services:
         sleep "$$ZABBIX_BACKUP_INTERVAL";
       done'
     volumes:
-      - zabbix-postgres-backup:/var/lib/postgresql/data
+      - zabbix-postgres-backup:${ZABBIX_POSTGRES_DATA_PATH:-/var/lib/postgresql/data}
       - zabbix-database-backups:${ZABBIX_POSTGRES_BACKUPS_PATH:-/srv/zabbix-postgres/backups}
     environment:
       ZABBIX_DB_NAME: ${ZABBIX_DB_NAME:-zabbixdb}
