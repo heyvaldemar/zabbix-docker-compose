@@ -7,7 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-_(no unreleased changes yet)_
+### Fixed
+
+- **PostgreSQL data volume target is configurable** through `ZABBIX_POSTGRES_DATA_PATH`, covering the Docker Official Image path change between PostgreSQL 15–17 (`/var/lib/postgresql/data`) and PostgreSQL 18+ (`/var/lib/postgresql`).
 
 ## [1.9.4] - 2026-10-08
 
