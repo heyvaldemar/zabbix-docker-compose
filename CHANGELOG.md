@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **`zabbix/zabbix-web-nginx-pgsql:7.0.31-ubuntu` moved to `zabbix/zabbix-web-nginx-pgsql:7.0.32-ubuntu`.** The freshness check reported the lag; the deploy job booted the stack on the new image before this landed.
+- **`zabbix/zabbix-server-pgsql:7.0.31-ubuntu` moved to `zabbix/zabbix-server-pgsql:7.0.32-ubuntu`.** The freshness check reported the lag; the deploy job booted the stack on the new image before this landed.
+- **`zabbix/zabbix-agent2:7.0.31-ubuntu` moved to `zabbix/zabbix-agent2:7.0.32-ubuntu`.** The freshness check reported the lag; the deploy job booted the stack on the new image before this landed.
+
+### Security
+
+- **`postgres:15` was rebuilt upstream**; the pin moved from `sha256:c961aa287d86…` to `sha256:c99dd5066e98…`. Same version, same tag, a rebuilt base image — the usual shape of a security fix in a base layer.
+
 ### Added
 
 - **CI fails on an anonymous volume.** A `VOLUME` an image declares and no mount covers becomes an anonymous volume: never backed up, and replaced by an empty one on `down`/`up`. The deployment verification now inspects every container it starts and fails on one, unless `.github/anonymous-volumes` lists it with the reason. GLPI's data lived in exactly such a volume from 2026-08-31 to 2026-10-11.
