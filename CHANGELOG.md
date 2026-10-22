@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+_(no unreleased changes yet)_
+
+## [1.9.6] - 2026-10-22
+
 ### Security
 
 - **`zabbix/zabbix-web-nginx-pgsql:7.0.32-ubuntu` was rebuilt upstream**; the pin moved from `sha256:9058a546d62c…` to `sha256:5a85414cadc6…`. Same version, same tag, a rebuilt base image — the usual shape of a security fix in a base layer.
