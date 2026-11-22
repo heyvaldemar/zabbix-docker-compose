@@ -9,6 +9,39 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 _(no unreleased changes yet)_
 
+## [1.10.0] - 2026-11-22
+
+### Added
+
+- **The stack comes up under podman-compose on a host without systemd.** Docker
+  runs health checks in its daemon; podman schedules them with systemd timers,
+  and a podman built without systemd (Alpine's, and that of the other OpenRC
+  systems) creates no timer and runs no check at all. On Alpine with podman 5.8
+  and podman-compose 1.6, PostgreSQL stayed `Up (starting)` for good, and
+  podman-compose, waiting for `condition: service_healthy`, left every other
+  container `Created` and never returned. `podman-healthchecks.sh` runs the
+  checks itself, every 10 seconds or once for cron, and `up` carries on at its
+  next round, even when it was started while `up` was already waiting. The
+  README's new Podman section says when it is needed and how to keep it
+  running. The compose file is unchanged, and so is everything on Docker.
+- **CI boots the stack under podman-compose 1.6 on Alpine 3.24 without
+  systemd, on every run.** The job first proves that no health check runs and
+  `up` waits, then starts the script and requires every container healthy and
+  the web API answering. It is `tests/podman-up.sh --no-systemd`, which refuses
+  to start where the `zabbix` project already has containers or volumes, since
+  it ends with `down -v`.
+- **The README names a second podman problem, on hosts with AppArmor.** With
+  `no-new-privileges`, podman's AppArmor profile denies the signals `gosu` in
+  PostgreSQL's entrypoint sends between its own threads, and PostgreSQL never
+  starts. Measured on GitHub's Ubuntu 26.04 runner with podman 5.7.0; Docker is
+  not affected, and this file cannot avoid it without dropping
+  `no-new-privileges` for Docker too.
+
+### Fixed
+
+- **The README's success check no longer names a Zabbix patch version** that the
+  next pin refresh makes wrong: it said 7.0.31 while the stack answered 7.0.32.
+
 ## [1.9.13] - 2026-11-20
 
 ### Security

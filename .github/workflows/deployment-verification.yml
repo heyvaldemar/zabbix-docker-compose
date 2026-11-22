@@ -249,3 +249,58 @@ jobs:
       - name: Shutdown Docker Compose services
         if: always()
         run: docker compose -f "$DOCKER_COMPOSE_FILE" -p "$COMPOSE_PROJECT_NAME" down
+
+  podman-no-systemd:
+    # Issue #14: Alpine bare metal, podman 5.8, podman-compose 1.6. A podman
+    # built without systemd schedules no health check at all, so PostgreSQL
+    # stays "starting" and podman-compose waits for service_healthy forever.
+    # The job proves that first, then starts podman-healthchecks.sh and
+    # requires the same stack to come up healthy with the API answering.
+    name: podman-compose up on Alpine without systemd (podman-healthchecks.sh)
+    runs-on: ubuntu-latest
+    needs: lint
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    env:
+      ALPINE_IMAGE: alpine:3.24@sha256:f59abe656b692d901e184be3445e084786602108599d2a51d229c0f5a48c71bf
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Generate test .env with ephemeral credentials
+        run: |
+          cat > .env <<EOF
+          ZABBIX_DB_PASSWORD=$(openssl rand -base64 24 | tr -d '/+=' | head -c 32)
+          EOF
+
+      - name: Start an Alpine host with podman and podman-compose
+        # Privileged, with its own podman store on a volume (overlay does not
+        # mount on overlay), and the cgroup v2 move docker:dind makes so that
+        # podman can create cgroups of its own inside. OpenRC, no systemd.
+        run: |
+          docker volume create podman-store >/dev/null
+          docker run -d --name alpine-host --privileged \
+            -v podman-store:/var/lib/containers -v "$PWD:/src" \
+            "$ALPINE_IMAGE" sleep infinity
+          docker exec alpine-host sh -euc '
+            mkdir -p /sys/fs/cgroup/init
+            xargs -rn1 < /sys/fs/cgroup/cgroup.procs > /sys/fs/cgroup/init/cgroup.procs || :
+            sed -e "s/ / +/g" -e "s/^/+/" < /sys/fs/cgroup/cgroup.controllers > /sys/fs/cgroup/cgroup.subtree_control
+            for attempt in 1 2 3; do
+              apk add --no-cache bash curl iptables ip6tables podman podman-compose && break
+              echo "apk add failed (attempt $attempt)"; sleep 15
+            done
+            command -v podman-compose >/dev/null || { echo "podman-compose did not install" >&2; exit 1; }
+            if [ -d /run/systemd/system ]; then echo "systemd runs here: not the host under test" >&2; exit 1; fi
+            apk info -v podman podman-compose
+          '
+
+      - name: No health check runs and up waits; with podman-healthchecks.sh the stack comes up
+        run: docker exec alpine-host /src/tests/podman-up.sh --no-systemd
+
+      - name: Remove the Alpine host
+        if: always()
+        run: |
+          docker rm -f alpine-host >/dev/null 2>&1 || true
+          docker volume rm podman-store >/dev/null 2>&1 || true
