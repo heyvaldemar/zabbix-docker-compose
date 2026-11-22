@@ -36,8 +36,21 @@ docker compose -f zabbix-docker-compose.yml -p zabbix ps
 curl -fsS -X POST "http://localhost/api_jsonrpc.php" \
   -H 'Content-Type: application/json' \
   -d '{"jsonrpc":"2.0","method":"apiinfo.version","params":{},"id":1}'
-# Expected: {"jsonrpc":"2.0","result":"7.0.31","id":1}
+# Expected: {"jsonrpc":"2.0","result":"7.0.x","id":1}, the Zabbix version the compose file pins
 ```
+
+### Podman
+
+Docker runs health checks in its daemon. Podman schedules them with systemd timers, and only with them. On a host without systemd (Alpine and the other OpenRC systems, or podman inside a container) it creates no timer and runs no check at all: in a build without systemd the function that would create it [does nothing](https://github.com/containers/podman/blob/v5.8.10/libpod/healthcheck_nosystemd_linux.go). PostgreSQL then stays `Up (starting)` for good, and podman-compose, which waits for every `condition: service_healthy`, leaves the other containers `Created` and never returns. There, run the checks yourself:
+
+```bash
+./podman-healthchecks.sh &
+podman-compose -f zabbix-docker-compose.yml -p zabbix up -d
+```
+
+The script runs `podman healthcheck run` for every running container that has a check, every 10 seconds, until stopped; `--once` runs a single round, for cron. If `up` is already waiting, start the script in another shell and `up` carries on. Once `up` has returned nothing depends on it, but without it every health status stays at its last value. On Alpine, a script in `/etc/local.d/` (with `rc-update add local`) keeps it running across reboots, and `rc-update add podman` starts the containers themselves at boot.
+
+A host with AppArmor has a second podman problem. With `no-new-privileges`, which every service here sets, podman's AppArmor profile denies the signals that `gosu` in PostgreSQL's entrypoint sends between its own threads, so the entrypoint hangs and PostgreSQL never starts: `Up (unhealthy)`, and `pg_isready` gets no response. Measured on GitHub's Ubuntu 26.04 runner with podman 5.7.0 ([run 44986862635](https://github.com/heyvaldemar/zabbix-docker-compose/actions/runs/44986862635)): the same container starts without `no-new-privileges`, or with `--security-opt apparmor=unconfined`, and Docker is not affected. Podman there also needs `unqualified-search-registries = ["docker.io"]` in `/etc/containers/registries.conf` to pull the short image names this file uses; Alpine's lists it, Ubuntu's lists none.
 
 ## Updating
 
@@ -80,6 +93,8 @@ Every service runs with `security_opt: no-new-privileges:true`, so a process can
 ## Testing
 
 The [Deployment Verification](https://github.com/heyvaldemar/zabbix-docker-compose/actions/workflows/deployment-verification.yml?query=branch%3Amain) workflow runs on every push, pull request, and every day at 06:00 UTC: shellcheck + actionlint, Trivy scans of all four pinned images, the weekly freshness check, and a deploy-and-test job that boots the full stack with ephemeral credentials, waits for the zabbix-server healthcheck, and requires the web API (`apiinfo.version`) to answer. The shipped configuration must produce a working Zabbix, not just started containers.
+
+Another job boots the same stack under podman-compose 1.6 on Alpine 3.24 inside the runner, with podman 5.8 and no systemd: it first proves that no health check runs and `up` waits, then starts `podman-healthchecks.sh` and requires every container healthy and the web API answering. That is `tests/podman-up.sh --no-systemd`. It ends with `down -v` and refuses to start where the `zabbix` project already has containers or volumes, so it cannot take a deployment's data with it.
 
 ### Backup and restore, proven
 
