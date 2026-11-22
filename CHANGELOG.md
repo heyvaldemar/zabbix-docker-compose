@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+_(no unreleased changes yet)_
+
+## [1.10.0] - 2026-11-22
+
 ### Added
 
 - **The stack comes up under podman-compose on a host without systemd.** Docker
